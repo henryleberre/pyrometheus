@@ -216,7 +216,7 @@ def diffusivity_polynomial_expr(c, t):
     """
     assert len(c) == 5
     return (
-        p.Variable("sqrt")(t) * t * (
+        (
             c[0]
             + c[1] * p.Variable("log")(t)
             + c[2] * p.Variable("log")(t) ** 2
@@ -249,7 +249,10 @@ def diffusivity_mixture_rule_denom_expr(sol: ct.Solution, j_sp, x, bdiff):
     of the species mole fractions *x* and binary diffusivities *bdiff* as a
     :class:`pymbolic.primitives.Expression`
     """
-    return sum(x[i_sp] / bdiff[i_sp][j_sp] for i_sp in range(sol.n_species))
+    return (
+        sum(x[i_sp] / bdiff[j_sp][i_sp] for i_sp in range(j_sp))
+        + sum(x[i_sp] / bdiff[i_sp][j_sp] for i_sp in range(j_sp+1, sol.n_species))
+    )
 
 # }}}
 

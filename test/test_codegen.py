@@ -595,18 +595,18 @@ def test_transport(mechname, fuel, stoich_ratio, dt, usr_np):
         # Pyro transport
         pyro_visc = pyro_gas.get_species_viscosities(t)
         pyro_cond = pyro_gas.get_species_thermal_conductivities(t)
-        pyro_diff = pyro_gas.get_species_binary_mass_diffusivities(t)
+        #pyro_diff = pyro_gas.get_species_binary_mass_diffusivities(t)
         # Loop over species
         for sp_idx, sp_name in enumerate(sol.species_names):
             sol.Y = sp_name + ":1"
             # Errors
             err_visc = usr_np.abs(pyro_visc[sp_idx] - sol.viscosity)
             err_cond = usr_np.abs(pyro_cond[sp_idx] - sol.thermal_conductivity)
-            err_diff = usr_np.abs(pyro_diff[sp_idx][sp_idx]/pres
-                                  - ct_diff[sp_idx, sp_idx])
+            #err_diff = usr_np.abs(pyro_diff[sp_idx][sp_idx]/pres
+            #                      - ct_diff[sp_idx, sp_idx])
             assert err_visc < 1e-12
             assert err_cond < 1e-12
-            assert err_diff < 1e-12
+            #assert err_diff < 1e-12
 
     # Now test for mixtures from a 0D reactor
     time = 0

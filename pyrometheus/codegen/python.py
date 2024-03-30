@@ -511,9 +511,9 @@ class Thermochemistry:
         return self._pyro_make_array([
             %for i in range(sol.n_species):
             self._pyro_make_array([
-                %for j in range(sol.n_species):
+                %for j in range(i):
                 ${cgm(ce.diffusivity_polynomial_expr(
-                      sol.get_binary_diff_coeffs_polynomial(i, j),
+                      sol.get_binary_diff_coeffs_polynomial(j, i),
                       Variable("temperature")))},
                 %endfor
             ]),
@@ -546,24 +546,17 @@ class Thermochemistry:
         bdiff_ij = self.get_species_binary_mass_diffusivities(temperature)
         zeros = self._pyro_zeros_like(temperature)
 
-        x_sum = self._pyro_make_array([
+        denom = self._pyro_make_array([
             %for sp in range(sol.n_species):
             ${cgm(ce.diffusivity_mixture_rule_denom_expr(
                 sol, sp, Variable("mole_fractions"), Variable("bdiff_ij")))},
             %endfor
             ])
-        denom = self._pyro_make_array([
-            %for s in range(sol.n_species):
-            x_sum[${s}] - mole_fractions[${s}]/bdiff_ij[${s}][${s}],
-            %endfor
-            ])
 
         return self._pyro_make_array([
             %for sp in range(sol.n_species):
-            self.usr_np.where(self.usr_np.greater(denom[${sp}], zeros), <%
-                %>(mmw - mole_fractions[${sp}] * self.molecular_weights[${sp}])/(<%
-                    %>pressure * mmw * denom[${sp}]), <%
-                %>bdiff_ij[${sp}][${sp}] / pressure),
+            self.usr_np.sqrt(temperature) * temperature / pressure * <%
+                %>(1.0 - mass_fractions[${sp}])/(denom[${sp}]),
             %endfor
             ])""", strict_undefined=True)
 
