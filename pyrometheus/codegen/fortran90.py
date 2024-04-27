@@ -100,7 +100,7 @@ def wrap_code(s, indent=4):
 
 
 def float_to_fortran(num):
-    result = repr(num).replace("e", "d")
+    result = f"{num}".replace("e", "d")
     if "d" not in result:
         result = result+"d0"
     if num < 0:
@@ -547,8 +547,8 @@ contains
         %endfor
 
         %for i, (_, react) in enumerate(falloff_reactions):
-        falloff_center(${i+1}) = log10(${cgm(ce.troe_falloff_expr(
-            react, Variable("temperature")))})
+        falloff_center(${i+1}) = ${cgm(ce.troe_falloff_expr(
+            react, Variable("temperature")))}
         %endfor
 
         %for i, (_, react) in enumerate(falloff_reactions):
