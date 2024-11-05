@@ -28,7 +28,9 @@ jobs:
         - name: Flake8
           run: |
             python3 -m pip install .[dev]
-            python3 .ci/generate-test-mech.py
+            for mech in test/mechs/*.yaml; do
+              pyrometheus -l python -m "$mech" -n "pyrometheus" -o "$mech.py"
+            done
             flake8 --extend-ignore E501,Q000 test/mechs
 
     pytest:
@@ -49,7 +51,7 @@ jobs:
                 python3 -m pip install .[test]
                 cmake -S test -B build -Dpybind11_DIR=`python3 -m pybind11 --cmakedir`
                 cmake --build build --parallel $(nproc)
-                ctest --test-dir build
+                ctest --test-dir build --output-on-failure -j $(nproc)
 
     docs:
         name: Documentation
@@ -62,5 +64,5 @@ jobs:
         - name: 'Build Docs'
           run: |
             python3 -m pip install -e .[docs]
-            python3 .ci/generate-example-mech.py test/mechs/sandiego.yaml pyrometheus/thermochem_example.py
+            pyrometheus -l python -m test/mechs/sandiego.yaml -n pyrometheus -o pyrometheus/thermochem_example.py
             cd doc && make html SPHINXOPTS='-W --keep-going -n'
