@@ -31,10 +31,10 @@ THE SOFTWARE.
 
 import typing
 
-from pyrometheus.codegen import CodeGenerator, CodeGenerationOptions  # noqa: F401
-from pyrometheus.codegen.python import PythonCodeGenerator
-from pyrometheus.codegen.cpp import CppCodeGenerator
-from pyrometheus.codegen.fortran import FortranCodeGenerator
+from .codegen import CodeGenerator, CodeGenerationOptions  # noqa: F401
+from .codegen.python import PythonCodeGenerator
+from .codegen.cpp import CppCodeGenerator
+from .codegen.fortran import FortranCodeGenerator
 
 
 def get_code_generators() -> typing.Dict[str, CodeGenerator]:

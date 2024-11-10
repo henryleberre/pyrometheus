@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 
 project(Pyrometheus)
 
@@ -8,11 +8,12 @@ option(TEST_fortran "Test the Fortran Backend." ON)
 
 set(TEST_MECHANISMS "uiuc;sandiego;uconn32;gri30;hong")
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 enable_testing()
 
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
-find_program(PYTEST_EXE pytest REQUIRED)
-find_program(PYROMETHEUS_EXE pyrometheus REQUIRED)
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/mechs")
 
@@ -28,9 +29,10 @@ function (pyro_generate_backend_impl)
                 "${PYRO_DIR}/__init__.py"
                 "${PYRO_DIR}/codegen/__init__.py"
                 "${PYRO_DIR}/codegen/${ARGS_BACKEND}.py"
-        COMMAND "${PYROMETHEUS_EXE}"
+        COMMAND "${Python3_EXECUTABLE}" -m pyrometheus
             --mech "${ARGS_MECHANISM}" --lang   "${ARGS_BACKEND}"
-            --name "${ARGS_NAME}"      --output "${ARGS_OUTPUT}"   
+            --name "${ARGS_NAME}"      --output "${ARGS_OUTPUT}"
+            --phase "gas"
     )
 endfunction()
 
@@ -41,8 +43,9 @@ function (pyro_generate_test)
     add_test(
         NAME    pyro_${ARGS_BACKEND}
         COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_BINARY_DIR}"
-            "${PYTEST_EXE}" "${CMAKE_SOURCE_DIR}/test.py"
-                            --backend ${ARGS_BACKEND}
+            "${Python3_EXECUTABLE}" -m pytest
+                "${CMAKE_SOURCE_DIR}/test.py"
+                --backend ${ARGS_BACKEND}
     )
 endfunction()
 

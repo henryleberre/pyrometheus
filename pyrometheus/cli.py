@@ -28,10 +28,13 @@ def main():
         help="Path to the output file.", required=True)
     parser.add_argument("-n", "--name",
         help="Namespace to use for the generated code.", required=True)
+    parser.add_argument("-p", "--phase",
+        help="Phase name to use for the generated code.")
 
     args = parser.parse_args()
 
+    source = generators[args.lang].generate(
+        args.name, ct.Solution(args.mech, args.phase)
+    )
     with open(args.output, "w") as f:
-        f.write(generators[args.lang].generate(
-            args.name, ct.Solution(args.mech, "gas")
-        ))
+        f.write(source)

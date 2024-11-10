@@ -83,10 +83,43 @@ header_tpl = Template("""
 #include <cmath>
 #include <string>
 
-namespace ${namespace} {
-template <typename _DataTypeT, typename _ContainerT = _DataTypeT>
-struct thermochemistry
+#if __cplusplus < 202002L
+#error "Pyrometheus requires C++20 or later."
+#endif
+
+#include <concepts>
+
+#ifdef __CUDACC__
+#include <cuda_runtime.h>
+#define __pyro__ __host__ __device__ static inline
+#else
+#define __pyro__ static inline
+#endif
+
+template<typename T>
+concept Arithmetic = requires(T a, T b) {
+    { a + b } -> std::same_as<T>;   { a - b } -> std::same_as<T>;
+    { a * b } -> std::same_as<T>;   { a / b } -> std::same_as<T>;
+    { -a } -> std::same_as<T>;      { +a } -> std::same_as<T>;
+    { a += b } -> std::same_as<T&>; { a -= b } -> std::same_as<T&>;
+    { a *= b } -> std::same_as<T&>; { a /= b } -> std::same_as<T&>;
+    { a == b } -> std::same_as<bool>;
+    { a != b } -> std::same_as<bool>;
+    { a < b } -> std::same_as<bool>;
+    { a > b } -> std::same_as<bool>;
+    { a <= b } -> std::same_as<bool>;
+    { a >= b } -> std::same_as<bool>;
+    { log(a) } -> std::same_as<T>;
+    { exp(a) } -> std::same_as<T>;
+    { sqrt(a) } -> std::same_as<T>;
+    { pow(a, b) } -> std::same_as<T>;
+};
+
+namespace pyro {
+template <Arithmetic _DataTypeT = double, Arithmetic _ContainerT = _DataTypeT>
+struct ${namespace}
 {
+    constexpr static const char* name = "${sol.name}";
     constexpr static int num_species = ${sol.n_species};
     constexpr static int num_reactions = ${sol.n_reactions};
     constexpr static int num_falloff = ${
@@ -119,7 +152,7 @@ struct thermochemistry
     static std::string get_species_name(int index) { return species_names[index]; }
     static std::string get_element_name(int index) { return element_names[index]; }
 
-    static int get_species_index(const std::string& name) {
+    __pyro__ int get_species_index(const std::string& name) {
         %for i, sp in enumerate(sol.species()):
             if (name == "${sp.name}") return ${i};
         %endfor
@@ -127,7 +160,7 @@ struct thermochemistry
         return -1;
     }
 
-    static int get_element_index(const std::string& name) {
+    __pyro__ int get_element_index(const std::string& name) {
         %for i, el in enumerate(sol.element_names):
             if (name == "${el}") return ${i};
         %endfor
@@ -135,7 +168,7 @@ struct thermochemistry
         return -1;
     }
 
-    static ContainerT get_specific_gas_constant(SpeciesT const &mass_fractions)
+    __pyro__ ContainerT get_specific_gas_constant(SpeciesT const &mass_fractions)
     {
         return gas_constant * (
                 %for i in range(sol.n_species):
@@ -144,7 +177,7 @@ struct thermochemistry
                 );
     }
 
-    static ContainerT get_mix_molecular_weight(SpeciesT const &mass_fractions)
+    __pyro__ ContainerT get_mix_molecular_weight(SpeciesT const &mass_fractions)
     {
         return 1.0/(
         %for i in range(sol.n_species):
@@ -153,7 +186,7 @@ struct thermochemistry
         );
     }
 
-    static SpeciesT get_concentrations(
+    __pyro__ SpeciesT get_concentrations(
         ContainerT rho, SpeciesT const &mass_fractions)
     {
         SpeciesT concentrations = {
@@ -164,7 +197,7 @@ struct thermochemistry
         return concentrations;
     }
 
-    static SpeciesT get_mole_fractions(
+    __pyro__ SpeciesT get_mole_fractions(
         ContainerT mix_mol_weight, SpeciesT mass_fractions)
     {
         return SpeciesT{
@@ -174,7 +207,7 @@ struct thermochemistry
         };
     }
 
-    static ContainerT get_mass_average_property(
+    __pyro__ ContainerT get_mass_average_property(
         SpeciesT const &mass_fractions, SpeciesT const &spec_property)
     {
         return (
@@ -186,7 +219,7 @@ struct thermochemistry
         );
     }
 
-    static ContainerT get_mixture_specific_heat_cv_mass(
+    __pyro__ ContainerT get_mixture_specific_heat_cv_mass(
         ContainerT temperature, SpeciesT const &mass_fractions)
     {
         SpeciesT cp0_r = get_species_specific_heats_r(temperature);
@@ -199,7 +232,7 @@ struct thermochemistry
         return gas_constant * cpmix;
     }
 
-    static ContainerT get_mixture_specific_heat_cp_mass(
+    __pyro__ ContainerT get_mixture_specific_heat_cp_mass(
         ContainerT temperature, SpeciesT const &mass_fractions)
     {
         const SpeciesT cp0_r = get_species_specific_heats_r(temperature);
@@ -207,7 +240,7 @@ struct thermochemistry
         return gas_constant * cpmix;
     }
 
-    static ContainerT get_mixture_enthalpy_mass(
+    __pyro__ ContainerT get_mixture_enthalpy_mass(
         ContainerT temperature, SpeciesT const &mass_fractions)
     {
         SpeciesT h0_rt = get_species_enthalpies_rt(temperature);
@@ -215,7 +248,7 @@ struct thermochemistry
         return gas_constant * hmix * temperature;
     }
 
-    static ContainerT get_mixture_internal_energy_mass(
+    __pyro__ ContainerT get_mixture_internal_energy_mass(
         ContainerT temperature, SpeciesT const &mass_fractions)
     {
         SpeciesT e0_rt = get_species_enthalpies_rt(temperature);
@@ -227,7 +260,7 @@ struct thermochemistry
         return gas_constant * emix * temperature;
     }
 
-    static ContainerT get_density(ContainerT p, ContainerT temperature,
+    __pyro__ ContainerT get_density(ContainerT p, ContainerT temperature,
             SpeciesT const &mass_fractions)
     {
         ContainerT mmw = get_mix_molecular_weight(mass_fractions);
@@ -235,7 +268,7 @@ struct thermochemistry
         return p * mmw / rt;
     }
 
-    static ContainerT get_pressure(
+    __pyro__ ContainerT get_pressure(
         ContainerT density, ContainerT temperature, SpeciesT const &mass_fractions)
     {
         const double mmw = get_mix_molecular_weight(mass_fractions);
@@ -243,7 +276,7 @@ struct thermochemistry
         return density * rt / mmw;
     }
 
-    static ContainerT get_mixture_molecular_weight(SpeciesT mass_fractions) {
+    __pyro__ ContainerT get_mixture_molecular_weight(SpeciesT mass_fractions) {
         return 1.0/(
             %for i in range(sol.n_species):
             + inv_molecular_weights[${i}]*mass_fractions[${i}]
@@ -251,7 +284,7 @@ struct thermochemistry
         );
     }
 
-    static SpeciesT get_species_specific_heats_r(ContainerT temperature)
+    __pyro__ SpeciesT get_species_specific_heats_r(ContainerT temperature)
     {
         SpeciesT cp0_r = {
             % for sp in sol.species():
@@ -261,7 +294,7 @@ struct thermochemistry
         return cp0_r;
     }
 
-    static SpeciesT get_species_enthalpies_rt(ContainerT temperature)
+    __pyro__ SpeciesT get_species_enthalpies_rt(ContainerT temperature)
     {
         SpeciesT h0_rt = {
             % for sp in sol.species():
@@ -271,7 +304,7 @@ struct thermochemistry
         return h0_rt;
     }
 
-    static SpeciesT get_species_entropies_r(ContainerT temperature)
+    __pyro__ SpeciesT get_species_entropies_r(ContainerT temperature)
     {
         SpeciesT s0_r = {
             % for sp in sol.species():
@@ -281,7 +314,7 @@ struct thermochemistry
         return s0_r;
     }
 
-    static SpeciesT get_species_gibbs_rt(ContainerT temperature)
+    __pyro__ SpeciesT get_species_gibbs_rt(ContainerT temperature)
     {
         SpeciesT h0_rt = get_species_enthalpies_rt(temperature);
         SpeciesT s0_r = get_species_entropies_r(temperature);
@@ -293,7 +326,7 @@ struct thermochemistry
         return g0_rt;
     }
 
-    static ReactionsT get_equilibrium_constants(ContainerT temperature)
+    __pyro__ ReactionsT get_equilibrium_constants(ContainerT temperature)
     {
         ContainerT rt = gas_constant * temperature;
         ContainerT c0 = std::log(one_atm/rt);
@@ -310,7 +343,7 @@ struct thermochemistry
         return k_eq;
     }
 
-    static ContainerT get_temperature(
+    __pyro__ ContainerT get_temperature(
         ContainerT energy_or_enthalpy,
         ContainerT t_guess,
         SpeciesT const &mass_fractions,
@@ -343,7 +376,7 @@ struct thermochemistry
     }
 
     %if falloff_reactions:
-    static void get_falloff_rates(
+    __pyro__ void get_falloff_rates(
         ContainerT temperature, SpeciesT const &concentrations, ReactionsT &k_fwd)
     {
         SpeciesT k_high = {
@@ -394,7 +427,7 @@ struct thermochemistry
     };
     %endif
 
-    static ReactionsT get_fwd_rate_coefficients(ContainerT temperature,
+    __pyro__ ReactionsT get_fwd_rate_coefficients(ContainerT temperature,
                                                 SpeciesT const &concentrations)
     {
         ReactionsT k_fwd = {
@@ -418,7 +451,7 @@ struct thermochemistry
         return k_fwd;
     }
 
-    static ReactionsT get_net_rates_of_progress(
+    __pyro__ ReactionsT get_net_rates_of_progress(
         ContainerT temperature, SpeciesT const &concentrations)
     {
         ReactionsT k_fwd = get_fwd_rate_coefficients(temperature, concentrations);
@@ -432,7 +465,7 @@ struct thermochemistry
         return r_net;
     }
 
-    static SpeciesT get_net_production_rates(
+    __pyro__ SpeciesT get_net_production_rates(
         ContainerT rho, ContainerT temperature, SpeciesT const &mass_fractions)
     {
         SpeciesT concentrations = get_concentrations(rho, mass_fractions);
@@ -445,7 +478,7 @@ struct thermochemistry
         return omega;
     }
 
-    static SpeciesT get_species_viscosities(ContainerT temperature)
+    __pyro__ SpeciesT get_species_viscosities(ContainerT temperature)
     {
         return SpeciesT{
             % for sp in range(sol.n_species):
@@ -456,7 +489,7 @@ struct thermochemistry
         };
     }
 
-    static SpeciesT get_species_thermal_conductivities(ContainerT temperature)
+    __pyro__ SpeciesT get_species_thermal_conductivities(ContainerT temperature)
     {
         return SpeciesT{
             % for sp in range(sol.n_species):
@@ -467,7 +500,7 @@ struct thermochemistry
         };
     }
 
-    static Species2T get_species_binary_mass_diffusivities(ContainerT temperature)
+    __pyro__ Species2T get_species_binary_mass_diffusivities(ContainerT temperature)
     {
         return Species2T{
             %for i in range(sol.n_species):
@@ -482,7 +515,7 @@ struct thermochemistry
         };
     }
 
-    static ContainerT get_mixture_viscosity_mixavg(
+    __pyro__ ContainerT get_mixture_viscosity_mixavg(
         ContainerT temperature, SpeciesT mass_fractions)
     {
         ContainerT mmw = get_mixture_molecular_weight(mass_fractions);
@@ -502,7 +535,7 @@ struct thermochemistry
         );
     }
 
-    static ContainerT get_mixture_thermal_conductivity_mixavg(
+    __pyro__ ContainerT get_mixture_thermal_conductivity_mixavg(
         ContainerT temperature, SpeciesT mass_fractions)
     {
         ContainerT mmw = get_mixture_molecular_weight(mass_fractions);
@@ -524,7 +557,7 @@ struct thermochemistry
         return 0.5*(lhs + rhs);
     }
 
-    static SpeciesT get_species_mass_diffusivities_mixavg(
+    __pyro__ SpeciesT get_species_mass_diffusivities_mixavg(
         ContainerT pressure, ContainerT temperature, SpeciesT mass_fractions)
     {
         ContainerT mmw = get_mixture_molecular_weight(mass_fractions);
@@ -556,6 +589,8 @@ struct thermochemistry
 
 };
 }
+
+#undef __pyro__
 """, strict_undefined=True)
 
 # }}}

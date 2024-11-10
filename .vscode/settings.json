@@ -1,0 +1,4 @@
+{
+    "C_Cpp.default.cppStandard": "c++20",
+    "C_Cpp.default.compilerPath": "/opt/nvidia/hpc_sdk/Linux_x86_64/24.9/compilers/bin/nvcc",
+}
