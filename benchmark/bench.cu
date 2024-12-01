@@ -43,11 +43,14 @@ int main(int argc, char** argv) {
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
 
-    std::printf("Benchmarking:\n");
+    std::printf("Configuration:\n");
     std::printf("> Solution: %s (%d species and %d reactions)\n", thermo::name, thermo::num_species, thermo::num_reactions);
     std::printf("> Grid:     %d x %d x %d\n", sidelength, sidelength, sidelength);
     std::printf("> Device:   %s (%d SMs, %d GB)\n", prop.name, prop.multiProcessorCount, (int)(prop.totalGlobalMem / (1024 * 1024 * 1024)));
 
+    std::printf("Setup:\n");
+
+    std::printf("> Host Buffer Allocation\n");
     std::vector<Cell> cells(num_cells);
 
     auto rng = std::mt19937(42);
@@ -55,6 +58,7 @@ int main(int argc, char** argv) {
     auto rho_dist = std::uniform_real_distribution<double>(0.1, 10);
     auto Y_dist = std::uniform_real_distribution<double>(0, 1);
 
+    std::printf("> Generating random state vectors\n");
     for (int i = 0; i < num_cells; ++i) {
         cells[i].T = T_dist(rng);
         cells[i].rho = rho_dist(rng);
@@ -63,7 +67,10 @@ int main(int argc, char** argv) {
         }
     }
 
+    std::printf("> Allocating GPU memory\n");
     Cell* gpu_cells; cudaMalloc(&gpu_cells, num_cells * sizeof(Cell));
+    
+    std::printf("> Transfering CPU Buffers to GPU\n");
     cudaMemcpy(gpu_cells, cells.data(), num_cells * sizeof(Cell), cudaMemcpyHostToDevice);
 
     dim3 block(32, 32, 1);
@@ -78,7 +85,10 @@ int main(int argc, char** argv) {
 
     constexpr int num_runs = 10;
 
+    std::printf("> Benchmarking %02d times\n", num_runs);
     for (int i = 0; i < num_runs; ++i) {
+        std::printf("\r  Run %02d / %02d", i + 1, num_runs);
+        std::fflush(stdout);
         cudaEventRecord(start);
         bench<<<grid, block>>>(gpu_cells, num_cells);
         cudaEventRecord(stop);
@@ -89,6 +99,7 @@ int main(int argc, char** argv) {
         fom_avg += ms * 1e6 / num_cells;
         ms_avg += ms;
     }
+    std::printf("\n");
 
     fom_avg /= num_runs;
     ms_avg /= num_runs;
